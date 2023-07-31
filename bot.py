@@ -4,6 +4,7 @@ from nextcord.ext import commands
 import openai
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+CURRENTLY_COMPLETING = False
 
 
 global_token_usage = 0
@@ -20,24 +21,29 @@ guild_chat_history = {}
 # dict of guilds, with each guild having a dictionary of channels, each channel having a system message
 guild_system_messages = {}
 
+DEFAULT_SYSTEM_MESSAGE = (
+    "You are a helpful Discord chatbot. Keep your responses concise."
+)
+
 # define openai interaction
 
 
-def get_response(message="", history=[], system="You are a helpful AI Discord bot."):
+async def get_response(
+    history=[],
+    system=DEFAULT_SYSTEM_MESSAGE,
+):
     global global_token_usage
     if global_token_usage > GLOBAL_LIMIT:
         return {
             "response": "Sorry, I'm out of tokens. Please try again later.",
             "usage": 0,
         }
-    response = openai.ChatCompletion.create(
+    response = await openai.ChatCompletion.acreate(
         model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": system}]
-        + [{"role": "user", "content": message}]
-        if not history
-        else history,
+        messages=[{"role": "system", "content": system}] + history,
         temperature=0.9,
         top_p=0.95,
+        max_tokens=1000,
     )
     # return token usage bundled with response, excluding everything else
     # return response.choices[0].message.content
@@ -51,7 +57,9 @@ def get_response(message="", history=[], system="You are a helpful AI Discord bo
 
 def main():
     client = nextcord.Client()
-    bot = commands.Bot()
+    intents = nextcord.Intents.default()
+    intents.message_content = True
+    bot = commands.Bot(intents=intents)
 
     @bot.listen("on_ready")
     async def on_ready():
@@ -77,11 +85,13 @@ def main():
         if message.author.id in ignored_users:
             return
         # check if one of 3 things: bot is mentioned, bot is replied to, or message is in channel "gpt-chat"
+        global CURRENTLY_COMPLETING
         if (
             f"<@{bot.user.id}>" in message.content
             or message.reference
             or message.channel.name == "gpt-chat"
-        ):
+        ) and not CURRENTLY_COMPLETING:
+            CURRENTLY_COMPLETING = True
             # send typing indicator
             async with message.channel.typing():
                 pass
@@ -93,28 +103,25 @@ def main():
                     f"Sorry <@{message.author.id}>, you've reached your usage limit. Please try again later."
                 )
                 return
-            if message.guild.id not in guild_chat_history:
-                guild_chat_history[message.guild.id] = {}
-            if message.channel.id not in guild_chat_history[message.guild.id]:
-                guild_chat_history[message.guild.id][message.channel.id] = []
-            history = guild_chat_history[message.guild.id][message.channel.id]
 
-            # get system message
-            if message.guild.id not in guild_system_messages:
-                guild_system_messages[message.guild.id] = {}
-            if message.channel.id not in guild_system_messages[message.guild.id]:
-                guild_system_messages[message.guild.id][
-                    message.channel.id
-                ] = "You are a helpful AI Discord bot."
-            system = guild_system_messages[message.guild.id][message.channel.id]
+            history = guild_chat_history.get(str(message.guild.id), {}).get(
+                str(message.channel.id), []
+            )
+            system = guild_system_messages.get(str(message.guild.id), {}).get(
+                str(message.channel.id), DEFAULT_SYSTEM_MESSAGE
+            )
 
             if len(history) > 10:
                 history = history[-10:]
             history.append({"role": "user", "content": message.content})
-            response = get_response(message.content, history=history, system=system)
+            response = await get_response(history=history, system=system)
             history.append({"role": "assistant", "content": response["response"]})
             user_usage[str(message.author.id)] += response["usage"]
-            await message.channel.send(response["response"])
+            await message.reply(response["response"], mention_author=False)
+            channel_history = guild_chat_history.get(str(message.guild.id), {})
+            channel_history[str(message.channel.id)] = history
+            guild_chat_history[str(message.guild.id)] = channel_history
+            CURRENTLY_COMPLETING = False
 
     # endregion
 
@@ -122,7 +129,9 @@ def main():
     @bot.slash_command()
     async def clear_context(interaction: nextcord.Interaction):
         guild_chat_history[interaction.guild.id][interaction.channel.id] = []
-        await interaction.response.send_message("Context cleared.", ephemeral=True)
+        await interaction.response.send_message(
+            "Context cleared.",
+        )
 
     # slash command to check user token usage (accessible to everyone)
     @bot.slash_command()
@@ -151,7 +160,7 @@ def main():
     async def set(interaction: nextcord.Interaction, message: str):
         guild_system_messages[interaction.guild.id][interaction.channel.id] = message
         await interaction.response.send_message(
-            f"System message set to: {message}", ephemeral=True
+            f"System message set to: {message}",
         )
 
     @personality.subcommand()
@@ -166,7 +175,7 @@ def main():
             interaction.channel.id
         ] = "You are a helpful AI Discord bot."
         await interaction.response.send_message(
-            f"System message cleared.", ephemeral=True
+            f"System message cleared.",
         )
 
     # endregion
@@ -227,6 +236,18 @@ def main():
             await interaction.response.send_message(f"Global limit set to {limit}.")
         else:
             await interaction.response.send_message("You can't do that!")
+
+    # get channel history (not accessible to everyone)
+    @admin.subcommand()
+    async def get_channel_history(interaction: nextcord.Interaction):
+        if interaction.user.id == 892912043240333322:
+            await interaction.response.send_message(
+                str(
+                    guild_chat_history.get(str(interaction.guild.id), {}).get(
+                        str(interaction.channel.id), []
+                    )
+                )
+            )
 
     # endregion
 
