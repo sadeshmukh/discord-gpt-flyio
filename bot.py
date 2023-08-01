@@ -21,6 +21,12 @@ guild_chat_history = {}
 # dict of guilds, with each guild having a dictionary of channels, each channel having a system message
 guild_system_messages = {}
 
+# dm channel history
+dm_chat_history = {}
+
+# dm channel system messages
+dm_system_messages = {}
+
 DEFAULT_SYSTEM_MESSAGE = (
     "You are a helpful Discord chatbot. Keep your responses concise."
 )
@@ -56,7 +62,6 @@ async def get_response(
 
 
 def main():
-    client = nextcord.Client()
     intents = nextcord.Intents.default()
     intents.message_content = True
     bot = commands.Bot(intents=intents)
@@ -84,14 +89,46 @@ def main():
             return
         if message.author.id in ignored_users:
             return
+
+        # check if is in DMs
+
+        if isinstance(message.channel, nextcord.DMChannel):
+            # send typing indicator
+            async with message.channel.typing():
+                pass
+            # check if USER is over limit
+            if message.author.id not in user_usage:
+                user_usage[str(message.author.id)] = 0
+            if user_usage[str(message.author.id)] > USER_LIMIT:
+                await message.channel.send(
+                    f"Sorry <@{message.author.id}>, you've reached your usage limit. Please try again later."
+                )
+                return
+
+            history = dm_chat_history.get(str(message.author.id), [])
+            system = dm_system_messages.get(
+                str(message.author.id), DEFAULT_SYSTEM_MESSAGE
+            )
+
+            if len(history) > 10:
+                history = history[-10:]
+            history.append({"role": "user", "content": message.content})
+            response = await get_response(history=history, system=system)
+            history.append({"role": "assistant", "content": response["response"]})
+            user_usage[str(message.author.id)] += response["usage"]
+            await message.reply(response["response"], mention_author=False)
+
+            dm_chat_history[str(message.author.id)] = history
+
+            return
+
         # check if one of 3 things: bot is mentioned, bot is replied to, or message is in channel "gpt-chat"
-        global CURRENTLY_COMPLETING
+
         if (
             f"<@{bot.user.id}>" in message.content
-            or message.reference
+            or (message.reference and message.reference.resolved.author == bot.user)
             or message.channel.name == "gpt-chat"
-        ) and not CURRENTLY_COMPLETING:
-            CURRENTLY_COMPLETING = True
+        ):
             # send typing indicator
             async with message.channel.typing():
                 pass
@@ -121,7 +158,6 @@ def main():
             channel_history = guild_chat_history.get(str(message.guild.id), {})
             channel_history[str(message.channel.id)] = history
             guild_chat_history[str(message.guild.id)] = channel_history
-            CURRENTLY_COMPLETING = False
 
     # endregion
 
@@ -158,6 +194,13 @@ def main():
 
     @personality.subcommand()
     async def set(interaction: nextcord.Interaction, message: str):
+        # check if is in DMs
+        if isinstance(interaction.channel, nextcord.DMChannel):
+            dm_system_messages[str(interaction.author.id)] = message
+            await interaction.response.send_message(
+                f"System message set to: {message}",
+            )
+            return
         channel_system_messages = guild_system_messages.get(
             str(interaction.guild.id), {}
         )
@@ -170,6 +213,13 @@ def main():
 
     @personality.subcommand()
     async def get(interaction: nextcord.Interaction):
+        # check if is in DMs
+        if isinstance(interaction.channel, nextcord.DMChannel):
+            current_system = dm_system_messages.get(
+                str(interaction.author.id), DEFAULT_SYSTEM_MESSAGE
+            )
+            await interaction.response.send_message(f"System message: {current_system}")
+            return
         current_system = guild_system_messages.get(str(interaction.guild.id), {}).get(
             str(interaction.channel.id), DEFAULT_SYSTEM_MESSAGE
         )
@@ -177,6 +227,13 @@ def main():
 
     @personality.subcommand()
     async def clear(interaction: nextcord.Interaction):
+        # check if is in DMs
+        if isinstance(interaction.channel, nextcord.DMChannel):
+            dm_system_messages[str(interaction.author.id)] = DEFAULT_SYSTEM_MESSAGE
+            await interaction.response.send_message(
+                f"System message cleared.",
+            )
+            return
         guild_system_messages[interaction.guild.id][
             interaction.channel.id
         ] = "You are a helpful AI Discord bot."
