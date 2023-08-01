@@ -16,9 +16,11 @@ class AI(commands.Cog):
         storage: FirebaseStorage,
     ):
         self.bot = bot
-        self.default_system_message = storage.child("default_system_message")
-        self.dm_system_messages = storage.child("dm_system_messages")
-        self.guild_system_messages = storage.child("guild_system_messages")
+        self.guild_chat_history = storage.child("history").child("guild")
+        self.dm_chat_history = storage.child("history").child("dm")
+        self.default_system_message = storage.child("system").child("default")
+        self.dm_system_messages = storage.child("system").child("dm")
+        self.guild_system_messages = storage.child("system").child("guild")
         self.user_usage = storage.child("usage").child("user")
         self.global_usage = storage.child("usage").child("global")
         self.user_limit = storage.child("limits").child("user")
@@ -33,8 +35,8 @@ class AI(commands.Cog):
     ):
         if system is None:
             system = self.default_system_message
-        global global_token_usage
-        if global_token_usage > self.global_limit:
+
+        if (self.global_usage.value or 0) > (self.global_limit.value or 0):
             return {
                 "response": "Sorry, I'm out of tokens. Please try again later.",
                 "usage": 0,
@@ -49,7 +51,9 @@ class AI(commands.Cog):
         # return token usage bundled with response, excluding everything else
         # return response.choices[0].message.content
 
-        self.global_usage.set(self.global_usage.value + response.usage.total_tokens)
+        self.global_usage.set(
+            (self.global_usage.value or 0) + response.usage.total_tokens
+        )
         return {
             "response": response.choices[0].message.content,
             "usage": response.usage.total_tokens,
@@ -60,8 +64,9 @@ class AI(commands.Cog):
     async def on_message(self, message: nextcord.Message):
         if message.author == self.bot.user:
             return
-        if message.author.id in self.ignored_users.value.keys():
+        if self.ignored_users[str(message.author.id)]:  # if user is ignored
             return
+        print(self.ignored_users.value)
 
         # check for dms
         if isinstance(message.channel, nextcord.DMChannel):
@@ -97,35 +102,52 @@ class AI(commands.Cog):
 
         # it's a guild message
         # send typing indicator
-        async with message.channel.typing():
-            pass
-        # check if USER is over limit
-        if message.author.id not in self.user_usage.value.keys():
-            self.user_usage[str(message.author.id)] = 0
-        if self.user_usage[str(message.author.id)] > self.user_limit.value:
-            await message.channel.send(
-                f"Sorry <@{message.author.id}>, you've reached your usage limit. Please try again later."
+        # check if mentions bot or replies TO BOT or is in #gpt-chat
+        if (
+            message.channel.name == "gpt-chat"
+            or self.bot.user in message.mentions
+            or message.reference is not None
+            and message.reference.resolved.author == self.bot.user
+        ):
+            async with message.channel.typing():
+                pass
+            # check if USER is over limit
+            if message.author.id not in (self.user_usage.value or {}).keys():
+                self.user_usage[str(message.author.id)] = 0
+            if (self.user_usage[str(message.author.id)] or 0) > (
+                self.user_limit.value or 0
+            ):
+                await message.channel.send(
+                    f"Sorry <@{message.author.id}>, you've reached your usage limit. Please try again later."
+                )
+                return
+
+            # check if global over limit performed in get_response
+            history = self.guild_chat_history[str(message.guild.id)] or []
+
+            # system = (
+            #     self.guild_system_messages[str(message.guild.id)]
+            #     or self.default_system_message.value
+            # )
+
+            system = (
+                self.guild_system_messages.child(str(message.guild.id))[
+                    str(message.channel.id)
+                ]
+                or self.default_system_message.value
             )
-            return
 
-        # check if global over limit performed in get_response
-        history = self.guild_chat_history[str(message.guild.id)] or []
-        system = (
-            self.guild_system_messages[str(message.guild.id)]
-            or self.default_system_message.value
-        )
+            if len(history) > 10:
+                history = history[-10:]
 
-        if len(history) > 10:
-            history = history[-10:]
+            history.append({"role": "user", "content": message.content})
+            response = await self.get_response(history=history, system=system)
+            history.append({"role": "assistant", "content": response["response"]})
 
-        history.append({"role": "user", "content": message.content})
-        response = await self.get_response(history=history, system=system)
-        history.append({"role": "assistant", "content": response["response"]})
-
-        self.user_usage[str(message.author.id)] = (
-            self.user_usage.value + response["usage"]
-        )
-        await message.reply(response["response"], mention_author=False)
+            self.user_usage[str(message.author.id)] = (
+                self.user_usage[str(message.author.id)] or 0
+            ) + response["usage"]
+            await message.reply(response["response"], mention_author=False)
 
     @nextcord.slash_command(name="clear", description="Clears context for a channel.")
     async def clear_context(self, interaction: nextcord.Interaction):
