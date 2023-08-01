@@ -93,7 +93,9 @@ class AI(commands.Cog):
             history.append({"role": "user", "content": message.content})
             response = await self.get_response(history=history, system=system)
             history.append({"role": "assistant", "content": response["response"]})
-            self.user_usage[str(message.author.id)] += response["usage"]
+            self.user_usage[str(message.author.id)] = (
+                self.user_usage[str(message.author.id)] or 0
+            ) + response["usage"]
             await message.reply(response["response"], mention_author=False)
 
             self.dm_chat_history[str(message.author.id)] = history
@@ -125,11 +127,6 @@ class AI(commands.Cog):
             # check if global over limit performed in get_response
             history = self.guild_chat_history[str(message.guild.id)] or []
 
-            # system = (
-            #     self.guild_system_messages[str(message.guild.id)]
-            #     or self.default_system_message.value
-            # )
-
             system = (
                 self.guild_system_messages.child(str(message.guild.id))[
                     str(message.channel.id)
@@ -147,6 +144,10 @@ class AI(commands.Cog):
             self.user_usage[str(message.author.id)] = (
                 self.user_usage[str(message.author.id)] or 0
             ) + response["usage"]
+
+            self.guild_chat_history.child(str(message.guild.id))[
+                str(message.channel.id)
+            ] = history
             await message.reply(response["response"], mention_author=False)
 
     @commands.Cog.listener("on_guild_join")
