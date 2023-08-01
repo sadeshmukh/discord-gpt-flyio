@@ -3,7 +3,6 @@ from nextcord.ext import commands
 from modules.storage.firebase import FirebaseStorage
 
 
-# convert code into a cog
 class Personality(commands.Cog):
     def __init__(
         self,
@@ -15,51 +14,59 @@ class Personality(commands.Cog):
         self.dm_system_messages = storage.child("system_message").child("dm")
         self.guild_system_messages = storage.child("system_message").child("guild")
 
-    @commands.group(name="personality")
-    async def personality(self, ctx: commands.Context):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help(ctx.command)
+    @nextcord.slash_command(name="personality", description="Personality commands")
+    async def personality(self, interaction: nextcord.Interaction):
+        pass
 
-    @personality.command(name="set")
-    async def set(self, ctx: commands.Context, *, message: str):
+    @personality.subcommand(
+        name="set",
+        description="Set personality message",
+    )
+    async def set(self, interaction: nextcord.Interaction, *, message: str):
         # check if is in DMs
-        if isinstance(ctx.channel, nextcord.DMChannel):
-            self.dm_system_messages[str(ctx.author.id)] = message
-            await ctx.send(f"System message set to: {message}")
+        if isinstance(interaction.channel, nextcord.DMChannel):
+            self.dm_system_messages[str(interaction.user.id)] = message
+            await interaction.response.send_message(f"System message set to: {message}")
             return
         # channel_system_messages = self.guild_system_messages.get(str(ctx.guild.id), {})
-        channel_system_messages = self.guild_system_messages[str(ctx.guild.id)] or {}
-        channel_system_messages[str(ctx.channel.id)] = message
-        self.guild_system_messages[str(ctx.guild.id)] = channel_system_messages
+        channel_system_messages = (
+            self.guild_system_messages[str(interaction.guild.id)] or {}
+        )
+        channel_system_messages[str(interaction.channel.id)] = message
+        self.guild_system_messages[str(interaction.guild.id)] = channel_system_messages
 
-        await ctx.send(f"System message set to: {message}")
+        await interaction.response.send_message(f"System message set to: {message}")
 
-    @personality.command(name="get")
-    async def get(self, ctx: commands.Context):
+    @personality.subcommand(name="get", description="Get personality message")
+    async def get(self, interaction: nextcord.Interaction):
         # check if is in DMs
-        if isinstance(ctx.channel, nextcord.DMChannel):
+        if isinstance(interaction.channel, nextcord.DMChannel):
             current_system = (
-                self.dm_system_messages[str(ctx.author.id)]
+                self.dm_system_messages[str(interaction.user.id)]
                 or self.default_system_message
             )
-            await ctx.send(f"System message: {current_system}")
+            await interaction.response.send_message(f"System message: {current_system}")
             return
 
         current_system = (
-            self.guild_system_messages.child(str(ctx.guild.id))[str(ctx.channel.id)]
+            self.guild_system_messages.child(str(interaction.guild.id))[
+                str(interaction.channel.id)
+            ]
             or self.default_system_message
         )
-        await ctx.send(f"System message: {current_system}")
+        await interaction.response.send_message(f"System message: {current_system}")
 
-    @personality.command(name="clear")
-    async def clear(self, ctx: commands.Context):
+    @personality.subcommand(name="clear", description="Reset personality message")
+    async def clear(self, interaction: nextcord.Interaction):
         # check if is in DMs
-        if isinstance(ctx.channel, nextcord.DMChannel):
-            self.dm_system_messages[str(ctx.author.id)] = self.default_system_message
-            await ctx.send(f"System message cleared.")
+        if isinstance(interaction.channel, nextcord.DMChannel):
+            self.dm_system_messages[
+                str(interaction.user.id)
+            ] = self.default_system_message
+            await interaction.response.send_message(f"System message cleared.")
             return
-        #
-        self.guild_system_messages.child(str(ctx.guild.id))[
-            str(ctx.channel.id)
+
+        self.guild_system_messages.child(str(interaction.guild.id))[
+            str(interaction.channel.id)
         ] = "You are a helpful AI Discord bot."
-        await ctx.send(f"System message cleared.")
+        await interaction.response.send_message(f"System message cleared.")

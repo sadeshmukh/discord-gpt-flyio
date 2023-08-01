@@ -127,26 +127,32 @@ class AI(commands.Cog):
         )
         await message.reply(response["response"], mention_author=False)
 
-    @commands.command()
-    async def clear_context(self, ctx: commands.Context):
-        if isinstance(ctx.channel, nextcord.DMChannel):
-            self.dm_chat_history[str(ctx.author.id)] = []
-            await ctx.send("Cleared context.")
+    @nextcord.slash_command(name="clear", description="Clears context for a channel.")
+    async def clear_context(self, interaction: nextcord.Interaction):
+        if isinstance(interaction.channel, nextcord.DMChannel):
+            self.dm_chat_history[str(interaction.user.id)] = []
+            await interaction.response.send_message("Cleared context.")
         else:
-            self.guild_chat_history.child(str(ctx.guild.id))[ctx.channel.id] = []
-            await ctx.send("Cleared context.")
+            self.guild_chat_history.child(str(interaction.guild.id))[
+                str(interaction.channel.id)
+            ] = []
+            await interaction.response.send_message("Cleared context.")
 
-    @commands.command()
-    async def get_token_usage(self, ctx: commands.Context):
-        await ctx.send(f"Global token usage: {self.global_usage.value}")
-        await ctx.send(f"User token usage: {self.user_usage[str(ctx.author.id)]}")
+    @nextcord.slash_command(name="gettokens", description="Gets token usage.")
+    async def get_token_usage(self, interaction: nextcord.Interaction):
+        await interaction.response.send_message(
+            f"Global token usage: {self.global_usage.value}"
+        )
+        await interaction.response.send_message(
+            f"User token usage: {self.user_usage[str(interaction.user.id)]}"
+        )
 
-    @commands.command()
-    async def ignore(self, ctx: commands.Context):
-        self.ignored_users[str(ctx.author.id)] = not self.ignored_users[
-            str(ctx.author.id)
+    @nextcord.slash_command(name="ignore", description="Toggles ignore status.")
+    async def ignore(self, interaction: nextcord.Interaction):
+        self.ignored_users[str(interaction.user.id)] = not self.ignored_users[
+            str(interaction.user.id)
         ]
-        if self.ignored_users[str(ctx.author.id)]:
-            await ctx.send("You are now ignored.")
+        if self.ignored_users[str(interaction.user.id)]:
+            await interaction.response.send_message("You are now ignored.")
         else:
-            await ctx.send("You are no longer ignored.")
+            await interaction.response.send_message("You are no longer ignored.")

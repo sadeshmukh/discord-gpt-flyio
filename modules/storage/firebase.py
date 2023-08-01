@@ -17,7 +17,7 @@ cert = base64.b64decode(original)
 
 firebase_admin.initialize_app(
     credentials.Certificate(json.loads(cert)),
-    {"databaseURL": "https://discord-gpt-1884c-default-rtdb.firebaseio.com/"},
+    {"databaseURL": os.environ["DATABASE_URL"]},
 )
 
 # get the root reference
@@ -29,26 +29,26 @@ class FirebaseStorage:
         self.path = path
         self.ref = root.child(path) if path else root
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> any:
         return self.ref.child(key).get() or None
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         self.ref.child(key).set(value)
 
-    def set(self, value):
+    def set(self, value) -> None:
         self.ref.set(value)
 
     @property
-    def value(self, empty=None):
+    def value(self, empty=None) -> any:
         return self.ref.get() or empty
 
-    def update(self, value):
+    def update(self, value) -> None:
         self.ref.update(value)
 
-    def delete(self):
+    def delete(self) -> None:
         self.ref.delete()
 
-    def push(self, value):
+    def push(self, value) -> None:
         self.ref.push(value)
 
     # allow sub references, create new FirebaseStorage object
@@ -58,9 +58,9 @@ class FirebaseStorage:
 
 # example usage of class
 """
-storage = FirebaseStorage("dm_system_messages")
+storage = FirebaseStorage()
 
-storage.set({"123456789": "Hello, world!"})
+storage["key"] = "value"
 
 
 
