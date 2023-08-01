@@ -12,6 +12,7 @@ from modules.admin.cog import Admin
 def main():
     intents = nextcord.Intents.default()
     intents.message_content = True
+    intents.guilds = True
     bot = commands.Bot(intents=intents)
 
     # define FirebaseStorage object

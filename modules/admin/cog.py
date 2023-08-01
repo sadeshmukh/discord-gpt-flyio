@@ -3,6 +3,14 @@ from nextcord.ext import commands
 from modules.storage.firebase import FirebaseStorage
 
 
+admin_guilds = (
+    FirebaseStorage("admin").child("guilds").value
+)  # requires restart after update
+admin_users = (
+    FirebaseStorage("admin").child("users").value
+)  # requires restart after update
+
+
 class Admin(commands.Cog):
     def __init__(
         self,
@@ -16,9 +24,11 @@ class Admin(commands.Cog):
         self.global_limit = storage.child("limits").child("global")
 
     async def is_authorized(self, user: nextcord.User):
-        return user.id == 892912043240333322
+        return user.id in admin_users
 
-    @nextcord.slash_command(name="admin", description="Admin commands")
+    @nextcord.slash_command(
+        name="admin", description="Admin commands", guild_ids=admin_guilds
+    )
     @commands.is_owner()
     async def admin(self, ctx):
         pass

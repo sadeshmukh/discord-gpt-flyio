@@ -60,9 +60,9 @@ class AI(commands.Cog):
         }
 
     # listen to all messages
-    @commands.Cog.listener()
+    @commands.Cog.listener("on_message")
     async def on_message(self, message: nextcord.Message):
-        if message.author == self.bot.user:
+        if message.author.bot:
             return
         if self.ignored_users[str(message.author.id)]:  # if user is ignored
             return
@@ -148,6 +148,15 @@ class AI(commands.Cog):
                 self.user_usage[str(message.author.id)] or 0
             ) + response["usage"]
             await message.reply(response["response"], mention_author=False)
+
+    @commands.Cog.listener("on_guild_join")
+    async def on_guild_join(self, guild: nextcord.Guild):
+        # send message to any channel
+        await guild.system_channel.send(
+            f"""\
+Hi! I'm {self.bot.user.mention}. I'm a bot that uses OpenAI's GPT-3 to respond to messages. I'm still in beta, so make sure to send <@892912043240333322> any feedback you have!!\
+            """
+        )
 
     @nextcord.slash_command(name="clear", description="Clears context for a channel.")
     async def clear_context(self, interaction: nextcord.Interaction):
