@@ -158,16 +158,22 @@ def main():
 
     @personality.subcommand()
     async def set(interaction: nextcord.Interaction, message: str):
-        guild_system_messages[interaction.guild.id][interaction.channel.id] = message
+        channel_system_messages = guild_system_messages.get(
+            str(interaction.guild.id), {}
+        )
+        channel_system_messages[str(interaction.channel.id)] = message
+        guild_system_messages[str(interaction.guild.id)] = channel_system_messages
+
         await interaction.response.send_message(
             f"System message set to: {message}",
         )
 
     @personality.subcommand()
     async def get(interaction: nextcord.Interaction):
-        await interaction.response.send_message(
-            f"System message: {guild_system_messages[interaction.guild.id][interaction.channel.id]}"
+        current_system = guild_system_messages.get(str(interaction.guild.id), {}).get(
+            str(interaction.channel.id), DEFAULT_SYSTEM_MESSAGE
         )
+        await interaction.response.send_message(f"System message: {current_system}")
 
     @personality.subcommand()
     async def clear(interaction: nextcord.Interaction):
@@ -204,6 +210,16 @@ def main():
             user_usage[user.id] = 0
             await interaction.response.send_message(
                 f"Token usage for <@{user.id}> reset."
+            )
+        else:
+            await interaction.response.send_message("You can't do that!")
+
+    # slash command to get global token usage (not accessible to everyone)
+    @admin.subcommand()
+    async def get_global_usage(interaction: nextcord.Interaction):
+        if interaction.user.id == 892912043240333322:
+            await interaction.response.send_message(
+                f"Global token usage: {global_token_usage}", ephemeral=True
             )
         else:
             await interaction.response.send_message("You can't do that!")
