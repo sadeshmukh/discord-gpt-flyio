@@ -125,7 +125,12 @@ class AI(commands.Cog):
                 return
 
             # check if global over limit performed in get_response
-            history = self.guild_chat_history[str(message.guild.id)] or []
+            history = (
+                self.guild_chat_history.child(str(message.guild.id))[
+                    str(message.channel.id)
+                ]
+                or []
+            )
 
             system = (
                 self.guild_system_messages.child(str(message.guild.id))[
