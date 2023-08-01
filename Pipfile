@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 nextcord = "*"
 openai = "*"
+google-api-python-client = "*"
+firebase-admin = "*"
 
 [dev-packages]
 
