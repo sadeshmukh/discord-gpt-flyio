@@ -33,7 +33,7 @@ class AI(commands.Cog):
         history=[],
         system=None,
     ):
-        if system is None:
+        if not system:
             system = self.default_system_message
 
         if (self.global_usage.value or 0) > (self.global_limit.value or 0):
@@ -46,7 +46,7 @@ class AI(commands.Cog):
             messages=[{"role": "system", "content": system}] + history,
             temperature=0.9,
             top_p=0.95,
-            max_tokens=1000,
+            max_tokens=1500,
         )
         # return token usage bundled with response, excluding everything else
         # return response.choices[0].message.content
@@ -175,11 +175,10 @@ Hi! I'm {self.bot.user.mention}. I'm a bot that uses OpenAI's GPT-3 to respond t
             ] = []
             await interaction.response.send_message("Cleared context.")
 
-    @nextcord.slash_command(name="gettokens", description="Gets token usage.")
+    @nextcord.slash_command(
+        name="gettokens", description="Gets token usage for a user."
+    )
     async def get_token_usage(self, interaction: nextcord.Interaction):
-        await interaction.response.send_message(
-            f"Global token usage: {self.global_usage.value}"
-        )
         await interaction.response.send_message(
             f"User token usage: {self.user_usage[str(interaction.user.id)]}"
         )
@@ -190,6 +189,10 @@ Hi! I'm {self.bot.user.mention}. I'm a bot that uses OpenAI's GPT-3 to respond t
             str(interaction.user.id)
         ]
         if self.ignored_users[str(interaction.user.id)]:
-            await interaction.response.send_message("You are now ignored.")
+            await interaction.response.send_message(
+                "You are now ignored.", ephemeral=True
+            )
         else:
-            await interaction.response.send_message("You are no longer ignored.")
+            await interaction.response.send_message(
+                "You are no longer ignored.", ephemeral=True
+            )

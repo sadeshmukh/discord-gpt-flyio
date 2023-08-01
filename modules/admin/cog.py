@@ -3,12 +3,14 @@ from nextcord.ext import commands
 from modules.storage.firebase import FirebaseStorage
 
 
-admin_guilds = (
-    FirebaseStorage("admin").child("guilds").value
-)  # requires restart after update
-admin_users = (
-    FirebaseStorage("admin").child("users").value
-)  # requires restart after update
+admin_guilds = [
+    int(i) for i in FirebaseStorage("admin").child("guilds").value
+]  # requires restart after update
+admin_users = [
+    int(i) for i in FirebaseStorage("admin").child("users").value
+]  # requires restart after update
+
+print(admin_guilds, admin_users)
 
 
 class Admin(commands.Cog):
@@ -29,12 +31,10 @@ class Admin(commands.Cog):
     @nextcord.slash_command(
         name="admin", description="Admin commands", guild_ids=admin_guilds
     )
-    @commands.is_owner()
     async def admin(self, ctx):
         pass
 
     @admin.subcommand(name="resetusage", description="Reset all token usage")
-    @commands.is_owner()
     async def reset_usage(self, interaction: nextcord.Interaction):
         if await self.is_authorized(interaction.user):
             self.global_usage.set(0)
@@ -48,7 +48,6 @@ class Admin(commands.Cog):
             )
 
     @admin.subcommand(name="resetuserusage", description="Reset user token usage")
-    @commands.is_owner()
     async def reset_user_usage(
         self, interaction: nextcord.Interaction, user: nextcord.User
     ):
@@ -63,7 +62,6 @@ class Admin(commands.Cog):
             )
 
     @admin.subcommand(name="globalusage", description="Get global token usage")
-    @commands.is_owner()
     async def get_global_usage(self, interaction: nextcord.Interaction):
         if await self.is_authorized(interaction.user):
             await interaction.response.send_message(
@@ -75,7 +73,6 @@ class Admin(commands.Cog):
             )
 
     @admin.subcommand(name="shutdown", description="Shutdown the bot")
-    @commands.is_owner()
     async def shutdown(self, interaction: nextcord.Interaction):
         if await self.is_authorized(interaction.user):
             await interaction.response.send_message("Shutting down...")
@@ -86,7 +83,6 @@ class Admin(commands.Cog):
             )
 
     @admin.subcommand(name="userlimit", description="Set user limit")
-    @commands.is_owner()
     async def set_user_limit(self, interaction: nextcord.Interaction, limit: int):
         if await self.is_authorized(interaction.user):
             self.user_limit.set(limit)
@@ -99,7 +95,6 @@ class Admin(commands.Cog):
             )
 
     @admin.subcommand(name="globallimit", description="Set global limit")
-    @commands.is_owner()
     async def set_global_limit(self, interaction: nextcord.Interaction, limit: int):
         if await self.is_authorized(interaction.user):
             self.global_limit.set(limit)

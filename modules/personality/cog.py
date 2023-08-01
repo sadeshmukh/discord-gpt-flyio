@@ -10,9 +10,9 @@ class Personality(commands.Cog):
         storage: FirebaseStorage,
     ):
         self.bot = bot
-        self.default_system_message = storage.child("system_message").child("default")
-        self.dm_system_messages = storage.child("system_message").child("dm")
-        self.guild_system_messages = storage.child("system_message").child("guild")
+        self.default_system_message = storage.child("system").child("default")
+        self.dm_system_messages = storage.child("system").child("dm")
+        self.guild_system_messages = storage.child("system").child("guild")
 
     @nextcord.slash_command(name="personality", description="Personality commands")
     async def personality(self, interaction: nextcord.Interaction):
@@ -43,7 +43,7 @@ class Personality(commands.Cog):
         if isinstance(interaction.channel, nextcord.DMChannel):
             current_system = (
                 self.dm_system_messages[str(interaction.user.id)]
-                or self.default_system_message
+                or self.default_system_message.value
             )
             await interaction.response.send_message(f"System message: {current_system}")
             return
@@ -52,7 +52,7 @@ class Personality(commands.Cog):
             self.guild_system_messages.child(str(interaction.guild.id))[
                 str(interaction.channel.id)
             ]
-            or self.default_system_message
+            or self.default_system_message.value
         )
         await interaction.response.send_message(f"System message: {current_system}")
 
