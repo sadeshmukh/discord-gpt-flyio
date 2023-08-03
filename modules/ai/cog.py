@@ -25,6 +25,8 @@ class AI(commands.Cog):
         self.global_usage = storage.child("usage").child("global")
         self.user_limit = storage.child("limits").child("user")
         self.global_limit = storage.child("limits").child("global")
+        self.bot_channel = storage.child("bot_channel").child("guild")
+        self.default_bot_channel = storage.child("bot_channel").child("default")
 
         self.ignored_users = storage.child("ignored_users")
 
@@ -104,9 +106,16 @@ class AI(commands.Cog):
 
         # it's a guild message
         # send typing indicator
-        # check if mentions bot or replies TO BOT or is in #gpt-chat
+
+        is_in_bot_channel = (
+            message.channel.id
+            == (self.bot_channel[str(message.guild.id)] or self.default_bot_channel)
+            if self.bot_channel[str(message.guild.id)]
+            else message.channel.name == self.default_bot_channel.value
+        )
+
         if (
-            message.channel.name == "gpt-chat"
+            is_in_bot_channel
             or self.bot.user in message.mentions
             or message.reference is not None
             and message.reference.resolved.author == self.bot.user
