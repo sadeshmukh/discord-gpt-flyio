@@ -7,6 +7,7 @@ from modules.storage.firebase import FirebaseStorage
 from modules.ai.cog import AI
 from modules.personality.cog import Personality
 from modules.admin.cog import Admin
+from modules.guild.cog import Guild
 
 
 def main():
@@ -38,6 +39,7 @@ def main():
     bot.add_cog(AI(bot, storage=storage))
     bot.add_cog(Personality(bot, storage=storage))
     bot.add_cog(Admin(bot, storage=storage))
+    bot.add_cog(Guild(bot, storage=storage))
 
     bot.run(os.getenv("DISCORD_TOKEN"))
 
