@@ -18,8 +18,8 @@ def resetusage():
     current_user_usage = storage.child("usage").child("user").value
 
     storage.child("historic")["global"] = (
-        storage.child("historic")["global"] or 0 + current_global_usage
-    )
+        storage.child("historic")["global"] or 0
+    ) + current_global_usage
 
     for user in current_user_usage:
         historic.child("user").child(user).set(

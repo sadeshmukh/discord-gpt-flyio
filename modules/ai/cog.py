@@ -108,9 +108,8 @@ class AI(commands.Cog):
         # send typing indicator
 
         is_in_bot_channel = (
-            str(message.channel.id) in self.bot_channel[str(message.guild.id)]
-            or str(message.channel.id) == self.default_bot_channel.value
-        )
+            str(message.channel.id) in (self.bot_channel[str(message.guild.id)] or [])
+        ) or str(message.channel.id) == self.default_bot_channel.value
 
         if (
             is_in_bot_channel
