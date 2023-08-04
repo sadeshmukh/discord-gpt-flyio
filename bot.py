@@ -11,7 +11,9 @@ from modules.guild.cog import Guild
 
 
 def resetusage():
+    print("Resetting usage...")
     storage = FirebaseStorage()
+    historic = storage.child("historic")
     current_global_usage = storage.child("usage").child("global").value
     current_user_usage = storage.child("usage").child("user").value
 
@@ -20,8 +22,8 @@ def resetusage():
     )
 
     for user in current_user_usage:
-        storage.child("historic")["user"][user] = (
-            storage.child("historic")["user"][user] or 0 + current_user_usage[user]
+        historic.child("user").child(user).set(
+            (historic.child("user").child(user).value or 0) + current_user_usage[user]
         )
 
     storage.child("usage").set({"global": 0, "user": {}})
@@ -52,6 +54,10 @@ def main():
         )
 
         print(f"{bot.user.name} has connected to Discord.")
+
+    @bot.slash_command(name="ping", description="Ping the bot")
+    async def ping(interaction: nextcord.Interaction):
+        await interaction.response.send_message(f"Pong! {bot.latency * 1000}ms")
 
     # import all cogs manually
     bot.add_cog(AI(bot, storage=storage))
