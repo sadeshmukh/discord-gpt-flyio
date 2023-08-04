@@ -23,12 +23,12 @@ class Personality(commands.Cog):
         description="Set personality message",
     )
     async def set(self, interaction: nextcord.Interaction, *, message: str):
-        # check if is in DMs
-        if isinstance(interaction.channel, nextcord.DMChannel):
+        # check if in dm
+        if isinstance(interaction.channel, nextcord.DMChannel) or not interaction.guild:
             self.dm_system_messages[str(interaction.user.id)] = message
             await interaction.response.send_message(f"System message set to: {message}")
             return
-        # channel_system_messages = self.guild_system_messages.get(str(ctx.guild.id), {})
+
         channel_system_messages = (
             self.guild_system_messages[str(interaction.guild.id)] or {}
         )

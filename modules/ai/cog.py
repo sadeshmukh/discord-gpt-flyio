@@ -30,6 +30,9 @@ class AI(commands.Cog):
 
         self.ignored_users = storage.child("ignored_users")
 
+        self.ai_params = storage.child("ai_params")
+        self.openai_params = self.ai_params.child("openai")
+
     async def get_response(
         self,
         history=[],
@@ -45,10 +48,10 @@ class AI(commands.Cog):
             }
         response = await openai.ChatCompletion.acreate(
             model="gpt-3.5-turbo",
-            messages=[{"role": "system", "content": system}] + history,
-            temperature=0.9,
-            top_p=0.95,
-            max_tokens=1500,
+            messages=history + [{"role": "system", "content": system}],
+            temperature=self.openai_params.child("temperature").value or 0.6,
+            top_p=self.openai_params.child("top_p").value or 0.9,
+            max_tokens=self.openai_params.child("max_tokens").value or 1500,
         )
         # return token usage bundled with response, excluding everything else
         # return response.choices[0].message.content
@@ -76,9 +79,8 @@ class AI(commands.Cog):
             async with message.channel.typing():
                 pass
             # check if USER is over limit
-            if message.author.id not in self.user_usage.value.keys():
-                self.user_usage[str(message.author.id)] = 0
-            if self.user_usage[str(message.author.id)] > self.user_limit.value:
+
+            if (self.user_usage[str(message.author.id)] or 0) > self.user_limit.value:
                 await message.channel.send(
                     f"Sorry <@{message.author.id}>, you've reached your usage limit. Please try again later."
                 )

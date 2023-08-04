@@ -1,6 +1,7 @@
 import nextcord
 from nextcord.ext import commands
 from modules.storage.firebase import FirebaseStorage
+from modules.storage.firebase import resetusage
 
 
 admin_guilds = [
@@ -24,6 +25,9 @@ class Admin(commands.Cog):
         self.global_usage = storage.child("usage").child("global")
         self.user_limit = storage.child("limits").child("user")
         self.global_limit = storage.child("limits").child("global")
+        self.ai_params = storage.child("ai_params")
+        self.openai_params = self.ai_params.child("openai")
+        self.historic = storage.child("historic")
 
     async def is_authorized(self, user: nextcord.User):
         return user.id in admin_users
@@ -37,8 +41,7 @@ class Admin(commands.Cog):
     @admin.subcommand(name="resetusage", description="Reset all token usage")
     async def reset_usage(self, interaction: nextcord.Interaction):
         if await self.is_authorized(interaction.user):
-            self.global_usage.set(0)
-            self.user_usage.set({})
+            resetusage()
             await interaction.response.send_message(
                 "Token usage reset.", ephemeral=True
             )
@@ -100,6 +103,42 @@ class Admin(commands.Cog):
             self.global_limit.set(limit)
             await interaction.response.send_message(
                 f"Global limit set to {limit}.", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "You can't do that!", ephemeral=True
+            )
+
+    @admin.subcommand(name="settemp", description="Set temperature")
+    async def set_temp(self, interaction: nextcord.Interaction, temp: int):
+        if await self.is_authorized(interaction.user):
+            self.openai_params["temperature"] = temp
+            await interaction.response.send_message(
+                f"Temperature set to {temp}.", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "You can't do that!", ephemeral=True
+            )
+
+    @admin.subcommand(name="settopp", description="Set top_p")
+    async def set_topp(self, interaction: nextcord.Interaction, topp: int):
+        if await self.is_authorized(interaction.user):
+            self.openai_params["top_p"] = topp
+            await interaction.response.send_message(
+                f"Top_p set to {topp}.", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "You can't do that!", ephemeral=True
+            )
+
+    @admin.subcommand(name="setmaxtokens", description="Set max_tokens")
+    async def set_max_tokens(self, interaction: nextcord.Interaction, max_tokens: int):
+        if await self.is_authorized(interaction.user):
+            self.openai_params["max_tokens"] = max_tokens
+            await interaction.response.send_message(
+                f"Max_tokens set to {max_tokens}.", ephemeral=True
             )
         else:
             await interaction.response.send_message(

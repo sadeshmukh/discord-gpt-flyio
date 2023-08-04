@@ -65,3 +65,22 @@ storage["key"] = "value"
 
 
 """
+
+
+def resetusage():
+    print("Resetting usage...")
+    storage = FirebaseStorage()
+    historic = storage.child("historic")
+    current_global_usage = storage.child("usage").child("global").value
+    current_user_usage = storage.child("usage").child("user").value
+
+    storage.child("historic")["global"] = (
+        storage.child("historic")["global"] or 0
+    ) + current_global_usage
+
+    for user in current_user_usage:
+        historic.child("user").child(user).set(
+            (historic.child("user").child(user).value or 0) + current_user_usage[user]
+        )
+
+    storage.child("usage").set({"global": 0, "user": {}})
