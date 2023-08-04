@@ -8,6 +8,7 @@ nextcord = "*"
 openai = "*"
 google-api-python-client = "*"
 firebase-admin = "*"
+schedule = "*"
 
 [dev-packages]
 

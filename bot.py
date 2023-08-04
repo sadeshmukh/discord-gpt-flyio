@@ -1,7 +1,7 @@
 import os
 import nextcord
 from nextcord.ext import commands
-import openai
+import schedule
 
 from modules.storage.firebase import FirebaseStorage
 from modules.ai.cog import AI
@@ -10,10 +10,28 @@ from modules.admin.cog import Admin
 from modules.guild.cog import Guild
 
 
+def resetusage():
+    storage = FirebaseStorage()
+    current_global_usage = storage.child("usage").child("global").value
+    current_user_usage = storage.child("usage").child("user").value
+
+    storage.child("historic")["global"] = (
+        storage.child("historic")["global"] or 0 + current_global_usage
+    )
+
+    for user in current_user_usage:
+        storage.child("historic")["user"][user] = (
+            storage.child("historic")["user"][user] or 0 + current_user_usage[user]
+        )
+
+    storage.child("usage").set({"global": 0, "user": {}})
+
+
 def main():
     intents = nextcord.Intents.default()
     intents.message_content = True
     intents.guilds = True
+    intents.members = True
     bot = commands.Bot(intents=intents)
 
     # define FirebaseStorage object
@@ -42,6 +60,8 @@ def main():
     bot.add_cog(Guild(bot, storage=storage))
 
     bot.run(os.getenv("DISCORD_TOKEN"))
+
+    schedule.every().day.at("07:00").do(resetusage)
 
 
 if __name__ == "__main__":
