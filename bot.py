@@ -59,9 +59,8 @@ def main():
     bot.add_cog(Admin(bot, storage=storage))
     bot.add_cog(Guild(bot, storage=storage))
 
-    bot.run(os.getenv("DISCORD_TOKEN"))
-
     schedule.every().day.at("07:00").do(resetusage)
+    bot.run(os.getenv("DISCORD_TOKEN"))
 
 
 if __name__ == "__main__":
